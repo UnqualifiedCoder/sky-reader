@@ -57,30 +57,35 @@ Return ONLY valid JSON:
       }
     );
 
-    const data = await response.json();
-
     const text =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    const cleaned = text
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
+console.log('RAW GEMINI RESPONSE:', text);
 
-    const match = cleaned.match(/\{[\s\S]*\}/);
+const cleaned = text
+  .replace(/```json/g, '')
+  .replace(/```/g, '')
+  .trim();
 
-    if (!match) {
-      console.log('Gemini raw response:', text);
-      throw new Error('Could not parse response');
-    }
+let parsed;
 
-    const parsed = JSON.parse(match[0]);
+try {
+  parsed = JSON.parse(cleaned);
+} catch {
+  const match = cleaned.match(/\{[\s\S]*\}/);
+
+  if (!match) {
+    throw new Error('Could not parse Gemini response');
+  }
+
+  parsed = JSON.parse(match[0]);
+}
 
   } catch (err) {
     console.error(err);
 
     return res.status(500).json({
       error: err.message || 'Server error'
-    });
+    });const text =
   }
 }
