@@ -71,7 +71,7 @@ Return ONLY valid JSON:
 
     if (!match) {
       console.log('Gemini raw response:', text);
-      throw new Error('Could not parse Gemini response');
+      throw new Error('Could not parse response');
     }
 
     const parsed = JSON.parse(match[0]);
