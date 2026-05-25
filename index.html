@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky Reader — AI Weather App</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --border: #e2e0da;
+      --border-hover: #c5c2ba;
+      --text: #1a1917;
+      --muted: #6b6860;
+      --hint: #9e9b94;
+      --green-bg: #edf7f0;
+      --green: #1a7a3f;
+      --amber-bg: #fdf5e6;
+      --amber: #8a5a00;
+      --red-bg: #fdf0f0;
+      --red: #8a1a1a;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .wrap {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header { margin-bottom: 2rem; }
+    .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hint); margin-bottom: 6px; }
+    h1 { font-size: 28px; font-weight: 500; margin-bottom: 8px; }
+    .subtitle { font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+    /* API Key section */
+    .api-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .api-section summary {
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .api-section summary::before { content: '▸'; font-size: 10px; transition: transform 0.2s; }
+    .api-section[open] summary::before { transform: rotate(90deg); }
+    .api-section .inner { margin-top: 12px; }
+    .api-section label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .api-section input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+    }
+    .api-section input:focus { border-color: var(--border-hover); }
+    .api-note { font-size: 12px; color: var(--hint); margin-top: 6px; line-height: 1.5; }
+
+    /* Upload zones */
+    .zones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+    .zone {
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--surface);
+      overflow: hidden;
+      position: relative;
+      gap: 8px;
+    }
+    .zone:hover { border-color: var(--border-hover); background: var(--bg); }
+    .zone.loaded { border-style: solid; border-color: #4caf7d; }
+    .zone-icon { font-size: 28px; }
+    .zone-label { font-size: 13px; color: var(--muted); }
+    .zone img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .zone-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.28);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+    }
+
+    /* City input */
+    .field { margin-bottom: 1.25rem; }
+    .field label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--border-hover); }
+
+    /* Hint text */
+    #hint { font-size: 13px; color: var(--hint); text-align: center; margin-bottom: 1rem; min-height: 20px; }
+
+    /* Analyze button */
+    #btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--text);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    #btn:hover:not(:disabled) { opacity: 0.85; }
+    #btn:active:not(:disabled) { transform: scale(0.99); }
+    #btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Spinner */
+    .spin {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: sp 0.7s linear infinite;
+      display: inline-block;
+      vertical-align: -2px;
+      margin-right: 6px;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* Results */
+    #results { display: none; margin-top: 2rem; }
+
+    .match-ring {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      margin: 0 auto 10px;
+      border: 1px solid var(--border);
+    }
+    .match-num { font-size: 34px; font-weight: 500; }
+    .match-sub { font-size: 12px; margin-top: 2px; }
+    .match-label { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 1.5rem; }
+
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .card-eyebrow { font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--hint); margin-bottom: 10px; }
+    .card-condition { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+    .stat { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .stat:last-child { border-bottom: none; }
+    .stat-k { font-size: 13px; color: var(--muted); }
+    .stat-v { font-size: 13px; font-weight: 500; }
+
+    .notes-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+    }
+    .metric-label { font-size: 11px; color: var(--hint); margin-bottom: 4px; }
+    .metric-value { font-size: 20px; font-weight: 500; }
+    .metric-unit { font-size: 12px; font-weight: 400; }
+
+    .source-note { font-size: 11px; color: var(--hint); text-align: center; margin-top: 10px; }
+
+    @media (max-width: 480px) {
+      .cards { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <p class="eyebrow">Weather app</p>
+      <h1>Sky reader</h1>
+      <p class="subtitle">Upload two sky photos and enter your city. AI analyzes the photos and compares with live weather data.</p>
+    </div>
+
+    <!-- API Key -->
+    <details class="api-section" id="apiSection">
+      <summary>Anthropic API key (required)</summary>
+      <div class="inner">
+        <label for="apiKey">Paste your API key</label>
+        <input type="password" id="apiKey" placeholder="sk-ant-..." oninput="saveKey(); check()" />
+        <p class="api-note">
+          Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+          Your key is stored only in your browser (localStorage) and never sent anywhere except Anthropic's API.
+        </p>
+      </div>
+    </details>
+
+    <!-- Upload zones -->
+    <div class="zones">
+      <div class="zone" id="z1" onclick="document.getElementById('f1').click()">
+        <span class="zone-icon">📷</span>
+        <span class="zone-label">First photo</span>
+      </div>
+      <div class="zone" id="z2" onclick="document.getElementById('f2').click()">
+        <span class="zone-icon">📷</span>
+        <span class="zone-label">Second photo</span>
+      </div>
+    </div>
+    <input type="file" id="f1" accept="image/*" style="display:none" onchange="loadImg(event,1)" />
+    <input type="file" id="f2" accept="image/*" style="display:none" onchange="loadImg(event,2)" />
+
+    <!-- City -->
+    <div class="field">
+      <label for="cityInput">Your city</label>
+      <input type="text" id="cityInput" placeholder="e.g. Bengaluru, Mumbai, London..." oninput="check()" />
+    </div>
+
+    <p id="hint">Enter your API key, upload both photos, and enter your city</p>
+
+    <button id="btn" onclick="run()" disabled>Analyze sky →</button>
+
+    <!-- Results -->
+    <div id="results"></div>
+
+  </div>
+
+  <script>
+    let d1 = null, d2 = null, t1 = 'image/jpeg', t2 = 'image/jpeg';
+
+    // Load saved API key
+    window.onload = () => {
+      const saved = localStorage.getItem('sky_api_key');
+      if (saved) {
+        document.getElementById('apiKey').value = saved;
+        document.getElementById('apiSection').removeAttribute('open');
+      } else {
+        document.getElementById('apiSection').setAttribute('open', '');
+      }
+      check();
+    };
+
+    function saveKey() {
+      const k = document.getElementById('apiKey').value.trim();
+      if (k) localStorage.setItem('sky_api_key', k);
+    }
+
+    function loadImg(e, n) {
+      const f = e.target.files[0];
+      if (!f) return;
+      const mt = f.type || 'image/jpeg';
+      const r = new FileReader();
+      r.onload = ev => {
+        const b64 = ev.target.result.split(',')[1];
+        if (n === 1) { d1 = b64; t1 = mt; } else { d2 = b64; t2 = mt; }
+        const z = document.getElementById('z' + n);
+        z.innerHTML = `<img src="${ev.target.result}" alt="Sky photo ${n}"><div class="zone-overlay">✓</div>`;
+        z.classList.add('loaded');
+        check();
+      };
+      r.readAsDataURL(f);
+    }
+
+    function check() {
+      const key = document.getElementById('apiKey').value.trim();
+      const city = document.getElementById('cityInput').value.trim();
+      const ok = key && d1 && d2 && city.length > 1;
+      document.getElementById('btn').disabled = !ok;
+      if (!key) setHint('Add your Anthropic API key to get started');
+      else if (!d1 || !d2) setHint('Upload both sky photos');
+      else if (!city) setHint('Enter your city name');
+      else setHint('Ready — hit Analyze!');
+    }
+
+    function setHint(msg) { document.getElementById('hint').textContent = msg; }
+
+    async function run() {
+      const btn = document.getElementById('btn');
+      const city = document.getElementById('cityInput').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin"></span>Analyzing...';
+      document.getElementById('results').style.display = 'none';
+      setHint('Fetching weather and analyzing your photos...');
+
+      try {
+        // Run both in parallel
+        const [ai, wx] = await Promise.all([
+          analyzePhotos(apiKey),
+          fetchWeather(city)
+        ]);
+        showResults(ai, wx, city);
+      } catch (err) {
+        setHint('⚠ ' + (err.message || 'Something went wrong. Try again.'));
+        console.error(err);
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = 'Analyze again →';
+    }
+
+    async function analyzePhotos(apiKey) {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 800,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: t1, data: d1 } },
+              { type: 'image', source: { type: 'base64', media_type: t2, data: d2 } },
+              { type: 'text', text: 'Analyze these two sky photos for weather conditions. Return ONLY valid JSON with no other text:\n{"condition":"clear|partly_cloudy|cloudy|overcast|foggy|rainy|snowy|stormy","cloudCoverPercent":0,"precipitation":false,"visibility":"excellent|good|moderate|poor","confidence":0,"notes":"one sentence about what you observe"}' }
+            ]
+          }]
+        })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error('Anthropic API: ' + data.error.message);
+      const txt = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      const match = txt.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('Could not parse AI response');
+      return JSON.parse(match[0]);
+    }
+
+    async function fetchWeather(city) {
+      // Step 1: geocode city
+      const geoResp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`);
+      const geoData = await geoResp.json();
+      if (!geoData.results || !geoData.results.length) throw new Error(`City "${city}" not found. Try a different spelling.`);
+      const { latitude: lat, longitude: lon, name, country } = geoData.results[0];
+
+      // Step 2: fetch weather
+      const wxResp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,cloud_cover,wind_speed_10m,weather_code&timezone=auto`);
+      const wxData = await wxResp.json();
+      const c = wxData.current;
+
+      const codeToCondition = code => {
+        if (code <= 1) return 'clear';
+        if (code === 2) return 'partly_cloudy';
+        if (code === 3) return 'overcast';
+        if (code === 45 || code === 48) return 'foggy';
+        if (code >= 51 && code <= 67) return 'rainy';
+        if (code >= 71 && code <= 77) return 'snowy';
+        if (code >= 80 && code <= 82) return 'rainy';
+        if (code >= 95) return 'stormy';
+        return 'cloudy';
+      };
+
+      return {
+        condition: codeToCondition(c.weather_code),
+        temperature: Math.round(c.temperature_2m),
+        windspeed: Math.round(c.wind_speed_10m),
+        cloudCoverPercent: Math.round(c.cloud_cover),
+        precipitation: c.precipitation > 0,
+        humidity: Math.round(c.relative_humidity_2m),
+        cityName: name,
+        country
+      };
+    }
+
+    function calcMatch(ai, wx) {
+      const related = (a, b) => [['clear'], ['partly_cloudy', 'cloudy'], ['overcast', 'cloudy'], ['rainy', 'stormy'], ['foggy']].some(g => g.includes(a) && g.includes(b));
+      const cond = ai.condition === wx.condition ? 100 : related(ai.condition, wx.condition) ? 65 : 20;
+      const cloud = Math.max(0, 100 - Math.abs(ai.cloudCoverPercent - wx.cloudCoverPercent));
+      const prec = ai.precipitation === wx.precipitation ? 100 : 0;
+      return Math.round(cond * 0.4 + cloud * 0.4 + prec * 0.2);
+    }
+
+    const condLabel = { clear: 'Clear sky', partly_cloudy: 'Partly cloudy', cloudy: 'Cloudy', overcast: 'Overcast', foggy: 'Foggy', rainy: 'Rainy', snowy: 'Snowy', stormy: 'Stormy' };
+
+    function showResults(ai, wx, city) {
+      const m = calcMatch(ai, wx);
+      const mc = m >= 75
+        ? { bg: '#edf7f0', color: '#1a7a3f', label: 'Great match' }
+        : m >= 50
+        ? { bg: '#fdf5e6', color: '#8a5a00', label: 'Decent match' }
+        : { bg: '#fdf0f0', color: '#8a1a1a', label: 'Low match' };
+
+      const el = document.getElementById('results');
+      el.style.display = 'block';
+      el.innerHTML = `
+        <div style="text-align:center;margin-bottom:1.5rem">
+          <p style="font-size:12px;color:var(--hint);margin-bottom:10px">📍 ${wx.cityName}, ${wx.country}</p>
+          <div class="match-ring" style="background:${mc.bg}">
+            <span class="match-num" style="color:${mc.color}">${m}%</span>
+            <span class="match-sub" style="color:${mc.color}">match</span>
+          </div>
+          <p class="match-label">${mc.label} · AI confidence ${ai.confidence}%</p>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <p class="card-eyebrow">AI sees</p>
+            <p class="card-condition">${condLabel[ai.condition] || ai.condition}</p>
+            <div class="stat"><span class="stat-k">Cloud cover</span><span class="stat-v">${ai.cloudCoverPercent}%</span></div>
+            <div class="stat"><span class="stat-k">Precipitation</span><span class="stat-v">${ai.precipitation ? 'Yes' : 'No'}</span></div>
+            <div class="stat"><span class="stat-k">Visibility</span><span class="stat-v">${ai.visibility}</span></div>
+          </div>
+          <div class="card">
+            <p class="card-eyebrow">Real weather</p>
+            <p class="card-condition">${condLabel[wx.condition] || wx.condition}</p>
+            <div class="stat"><span class="stat-k">Cloud cover</span><span class="stat-v">${wx.cloudCoverPercent}%</span></div>
+            <div class="stat"><span class="stat-k">Precipitation</span><span class="stat-v">${wx.precipitation ? 'Yes' : 'No'}</span></div>
+            <div class="stat"><span class="stat-k">Temperature</span><span class="stat-v">${wx.temperature}°C</span></div>
+          </div>
+        </div>
+
+        <div class="notes-card">👁 ${ai.notes}</div>
+
+        <div class="metrics">
+          <div class="metric">
+            <p class="metric-label">Humidity</p>
+            <p class="metric-value">${wx.humidity}<span class="metric-unit">%</span></p>
+          </div>
+          <div class="metric">
+            <p class="metric-label">Wind</p>
+            <p class="metric-value">${wx.windspeed}<span class="metric-unit"> km/h</span></p>
+          </div>
+          <div class="metric">
+            <p class="metric-label">Temp</p>
+            <p class="metric-value">${wx.temperature}<span class="metric-unit">°C</span></p>
+          </div>
+        </div>
+
+        <p class="source-note">Weather data: Open-Meteo · AI analysis: Claude</p>
+      `;
+      setHint('Done! Upload new photos to run again.');
+    }
+  </script>
+</body>
+</html>
