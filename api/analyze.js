@@ -62,15 +62,19 @@ Return ONLY valid JSON:
     const text =
       data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    const match = text.match(/\{[\s\S]*\}/);
+    const cleaned = text
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
+
+    const match = cleaned.match(/\{[\s\S]*\}/);
 
     if (!match) {
+      console.log('Gemini raw response:', text);
       throw new Error('Could not parse Gemini response');
     }
 
     const parsed = JSON.parse(match[0]);
-
-    return res.status(200).json(parsed);
 
   } catch (err) {
     console.error(err);
