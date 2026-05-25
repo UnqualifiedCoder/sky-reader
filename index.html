@@ -254,7 +254,7 @@
       <input type="text" id="cityInput" placeholder="e.g. Bengaluru, Mumbai, London..." oninput="check()" />
     </div>
 
-    <p id="hint">Upload both photos, and enter your city</p>
+    <p id="hint">Upload both sky photos and enter your city</p>
 
     <button id="btn" onclick="run()" disabled>Analyze sky →</button>
 
@@ -346,26 +346,7 @@
 
   return data;
 }
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 800,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: t1, data: d1 } },
-              { type: 'image', source: { type: 'base64', media_type: t2, data: d2 } },
-              { type: 'text', text: 'Analyze these two sky photos for weather conditions. Return ONLY valid JSON with no other text:\n{"condition":"clear|partly_cloudy|cloudy|overcast|foggy|rainy|snowy|stormy","cloudCoverPercent":0,"precipitation":false,"visibility":"excellent|good|moderate|poor","confidence":0,"notes":"one sentence about what you observe"}' }
-            ]
-          }]
-        })
-      });
-      const data = await resp.json();
-      if (data.error) throw new Error('Anthropic API: ' + data.error.message);
-      const txt = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      const match = txt.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Could not parse AI response');
-      return JSON.parse(match[0]);
-    }
+  
 
     async function fetchWeather(city) {
       // Step 1: geocode city
@@ -467,7 +448,7 @@
           </div>
         </div>
 
-        <p class="source-note">Weather data: Open-Meteo · AI analysis: Claude</p>
+        <p class="source-note">Weather data: Open-Meteo · AI analysis: Google</p>
       `;
       setHint('Done! Upload new photos to run again.');
     }
