@@ -21,6 +21,10 @@ export default async function handler(req, res) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          generationConfig: {
+            responseMimeType: "application/json"
+          },
+
           contents: [
             {
               parts: [
@@ -38,17 +42,26 @@ export default async function handler(req, res) {
                 },
                 {
                   text: `
-Analyze these two sky photos for weather conditions.
+You are a weather analysis API.
 
-Return ONLY valid JSON.
+Analyze these two sky photos.
+
+IMPORTANT:
+- Return ONLY raw JSON
+- No markdown
+- No explanation
+- No code block
+- No extra text
+
+Use this exact format:
 
 {
-  "condition":"clear|partly_cloudy|cloudy|overcast|foggy|rainy|snowy|stormy",
-  "cloudCoverPercent":0,
-  "precipitation":false,
-  "visibility":"excellent|good|moderate|poor",
-  "confidence":0,
-  "notes":"one sentence about what you observe"
+  "condition": "clear",
+  "cloudCoverPercent": 40,
+  "precipitation": false,
+  "visibility": "good",
+  "confidence": 88,
+  "notes": "Light clouds with good daylight visibility."
 }
 `
                 }
@@ -66,24 +79,11 @@ Return ONLY valid JSON.
     const text =
       data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    const cleaned = text
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-
-    let parsed;
-
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const match = cleaned.match(/\{[\s\S]*\}/);
-
-      if (!match) {
-        throw new Error('Could not parse Gemini response');
-      }
-
-      parsed = JSON.parse(match[0]);
+    if (!text) {
+      throw new Error('Empty Gemini response');
     }
+
+    const parsed = JSON.parse(text);
 
     return res.status(200).json(parsed);
 
