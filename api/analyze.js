@@ -14,32 +14,33 @@ export default async function handler(req, res) {
     } = req.body;
 
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/:gengemini-2.0-flasherateContent?key=' + process.env.GEMINI_API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + process.env.GEMINI_API_KEY,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                inline_data: {
-                  mime_type: type1,
-                  data: image1
-                }
-              },
-              {
-                inline_data: {
-                  mime_type: type2,
-                  data: image2
-                }
-              },
-              {
-                text: `
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: type1,
+                    data: image1
+                  }
+                },
+                {
+                  inline_data: {
+                    mime_type: type2,
+                    data: image2
+                  }
+                },
+                {
+                  text: `
 Analyze these two sky photos for weather conditions.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON.
 
 {
   "condition":"clear|partly_cloudy|cloudy|overcast|foggy|rainy|snowy|stormy",
@@ -50,42 +51,47 @@ Return ONLY valid JSON:
   "notes":"one sentence about what you observe"
 }
 `
-              }
-            ]
-          }]
+                }
+              ]
+            }
+          ]
         })
       }
     );
 
+    const data = await response.json();
+
+    console.log('FULL GEMINI RESPONSE:', data);
+
     const text =
-  data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-console.log('RAW GEMINI RESPONSE:', text);
+    const cleaned = text
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
 
-const cleaned = text
-  .replace(/```json/g, '')
-  .replace(/```/g, '')
-  .trim();
+    let parsed;
 
-let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const match = cleaned.match(/\{[\s\S]*\}/);
 
-try {
-  parsed = JSON.parse(cleaned);
-} catch {
-  const match = cleaned.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error('Could not parse Gemini response');
+      }
 
-  if (!match) {
-    throw new Error('Could not parse Gemini response');
-  }
+      parsed = JSON.parse(match[0]);
+    }
 
-  parsed = JSON.parse(match[0]);
-}
+    return res.status(200).json(parsed);
 
   } catch (err) {
     console.error(err);
 
     return res.status(500).json({
       error: err.message || 'Server error'
-    });const text =
+    });
   }
 }
